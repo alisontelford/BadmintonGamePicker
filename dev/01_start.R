@@ -20,15 +20,15 @@
 ##
 golem::fill_desc(
   pkg_name = "BadmintonGamePicker", # The name of the golem package containing the app (typically lowercase, no underscore or periods)
-  pkg_title = "PKG_TITLE", # What the Package Does (One Line, Title Case, No Period)
-  pkg_description = "PKG_DESC.", # What the package does (one paragraph).
+  pkg_title = "BadmintonGamePicker", # What the Package Does (One Line, Title Case, No Period)
+  pkg_description = "Generates a new game of badminton based on those persons waiting in the queue.", # What the package does (one paragraph).
   authors = person(
-    given = "AUTHOR_FIRST", # Your First Name
-    family = "AUTHOR_LAST", # Your Last Name
-    email = "AUTHOR@MAIL.COM", # Your email
+    given = "Alison", # Your First Name
+    family = "Telford", # Your Last Name
+    email = "atelford7@gmail.com", # Your email
     role = c("aut", "cre") # Your role (here author/creator)
   ),
-  repo_url = NULL, # The URL of the GitHub repo (optional),
+  repo_url = "https://github.com/alisontelford/BadmintonGamePicker.git", # The URL of the GitHub repo (optional),
   pkg_version = "0.0.0.9000", # The version of the package containing the app
   set_options = TRUE # Set the global golem options
 )
@@ -53,7 +53,7 @@ golem::use_recommended_tests()
 
 ## Favicon ----
 # If you want to change the favicon (default is golem's one)
-golem::use_favicon() # path = "path/to/ico". Can be an online file.
+golem::use_favicon("www/Shuttlecock.png") # path = "path/to/ico". Can be an online file.
 # golem::remove_favicon() # Uncomment to remove the default favicon
 
 ## Add helper functions ----
