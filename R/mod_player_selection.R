@@ -3,6 +3,9 @@
 #' @description A shiny Module.
 #'
 #' @param id,input,output,session Internal parameters for {shiny}.
+#' @import DT
+#' @import dplyr
+#' @import shinyWidgets
 #'
 #' @noRd 
 #'
@@ -11,38 +14,60 @@ mod_player_selection_ui <- function(id) {
   tagList(
     fluidRow(
       column(
-        width=4, align="center",
-        div(
-          shinydashboard::box(
-            title = "Add/Remove Players",
-            solidHeader = FALSE,
-            collapsible = TRUE,
-            collapsed = FALSE,
-            width = 12,
-            background = NULL,
-            fluidRow(
-              htmlOutput(NS(id, "add_player_ui")),
-              actionButton(NS(id, "add_player_button"), label="Add Player")
+        width=5, align="center",
+        shinydashboard::box(
+          title = "Add/Remove Existing Players",
+          solidHeader = FALSE,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          width = 12,
+          background = NULL,
+          fluidRow(
+            column(
+              width=7,
+              uiOutput(NS(id, "add_player_ui"))
             ),
-            fluidRow(
-              htmlOutput(NS(id, "remove_player_ui")),
+            column(
+              width=4,
+              div(style="height: 25px"),
+              actionButton(NS(id, "add_player_button"), label="Add Player")
+            )
+          ),
+          fluidRow(
+            column(
+              width=7,
+              uiOutput(NS(id, "remove_player_ui"))
+            ),
+            column(
+              width=4,
+              div(style="height: 25px"),
               actionButton(NS(id, "remove_player_button"), label="Remove Player")
             )
           )
         ),
-        div(
-          shinydashboard::box(
-            title = NULL,
-            solidHeader = FALSE,
-            collapsible = TRUE,
-            collapsed = FALSE,
-            width = 12,
-            background = NULL
-          )
+        shinydashboard::box(
+          title = "Add New Player",
+          solidHeader = FALSE,
+          collapsible = TRUE,
+          collapsed = FALSE,
+          width = 12,
+          background = NULL,
+          HTML("<h4>Please enter your first and last name below.</h4>"),
+          fluidRow(
+            column(
+              width=6,
+              textInput(NS(id, "first_name"), label="First Name")
+            ),
+            column(
+              width=6,
+              textInput(NS(id, "last_name"), label="Last Name")
+            )
+          ),
+          actionButton(NS(id, "new_player"), label="Add New Player")
         )
       ),
       column(
-        width=8, align="center",
+        width=7, align="center",
         div(
           shinydashboard::box(
             title = NULL,
@@ -51,7 +76,7 @@ mod_player_selection_ui <- function(id) {
             collapsed = FALSE,
             width = 12,
             background = NULL,
-            DTOutput(NS(id, "active_players"))
+            DT::DTOutput(NS(id, "active_players"))
           )
         )
       )
@@ -65,25 +90,76 @@ mod_player_selection_ui <- function(id) {
 mod_player_selection_server <- function(id, sv, rv){
   moduleServer(id, function(input, output, session){
     ns <- session$ns
-    PlayerNames=reactive({
-      out=read.csv("data/PlayerNames.csv")
-      return(out)
-    })
     output$add_player_ui = renderUI({
-      selectInput(NS(id, "add_player"), "Add player", PlayerNames()$PlayerName, multiple=T, selectize=T)
+      shinyWidgets::pickerInput(session$ns("add_player"), label="Add player", choices=sort(rv$PlayerNames_tmp$PlayerName), multiple=TRUE)
+    })
+    output$remove_player_ui=renderUI({
+      shinyWidgets::pickerInput(session$ns("remove_player"), label="Remove Player", choices=sort(rv$ActivePlayers$PlayerName), multiple=TRUE)
     })
     observeEvent(input$add_player_button, {
+      req(input$add_player)
       rv$ActivePlayers=rv$ActivePlayers |> 
-        bind_rows(
+        dplyr::bind_rows(
           data.frame(
-            Name=input$add_player, 
-            Status=sapply(seq(1:4), function(x) {paste0("In Queue Position ", x)})
+            PlayerName=as.factor(input$add_player), 
+            Status=as.factor(sapply(seq(rv$QueuePos,(rv$QueuePos+length(input$add_player)-1)), function(x) {paste0("In Queue Position ", x)}))
           )
         )
+      rv$UnactivePlayers=rv$PlayerNames_tmp |> 
+        filter(!(PlayerName %in% rv$ActivePlayers$PlayerName))
+      updatePickerInput(session, "add_player", choices=sort(rv$UnactivePlayers$PlayerName))
+      updatePickerInput(session, "remove_player", choices=sort(rv$ActivePlayers$PlayerName))
+      rv$QueuePos=rv$QueuePos+length(input$add_player)
     })
-    output$active_players=renderDT(
-      rv$ActivePlayers
+    output$active_players=DT::renderDT(
+      DT::datatable(rv$ActivePlayers, filter="top")
     )
+    observeEvent(input$new_player, {
+      browser()
+      if (input$first_name=="" | input$last_name==""){
+        showModal(
+          modalDialog(
+            HTML("<h4>Please provide both a first and last name.</h4>"),
+            easyClose=TRUE,
+            title="Error",
+          )
+        )
+      }else{
+        new_names=sapply(seq(1,nchar(input$last_name)), function(x) {paste0(input$first_name, substr(input$last_name, 1, x))})
+        if (any(new_names %in% rv$PlayerNames_tmp$PlayerName)){
+          showModal(
+            modalDialog(
+              easyClose=FALSE,
+              title="Note",
+              HTML(
+                paste0("<h4> The name(s) ", new_names[which(new_names %in% rv$PlayerNames_tmp$PlayerName)], 
+                " already exists. If any of these/this is you, please press cancel. 
+                If you are none of these, please press 'Add New Player', your name will be displayed as: ", 
+                new_names[min(which(!(new_names %in% rv$PlayerNames_tmp$PlayerName)))],
+                ".</h4>")
+              ),
+              footer=tagList(
+                modalButton("Cancel"),
+                actionButton(session$ns("new_player_ok"), "Add New Player")
+              )
+            )
+          )
+        }else{
+          rv$PlayerNames_tmp=rv$PlayerNames_tmp |> 
+            dplyr::bind_rows(
+              data.frame(PlayerName=new_names[1])
+            )
+        }
+      }
+    })
+    observeEvent(input$new_player_ok, {
+      new_names=sapply(seq(1,nchar(input$last_name)), function(x) {paste0(input$first_name, substr(input$last_name, 1, x))})
+      rv$PlayerNames_tmp=rv$PlayerNames_tmp |> 
+        dplyr::bind_rows(
+          data.frame(PlayerName=new_names[min(which(!(new_names %in% rv$PlayerNames_tmp$PlayerName)))])
+        )
+      removeModal()
+    })
   })
 }
     

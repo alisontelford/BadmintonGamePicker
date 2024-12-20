@@ -10,13 +10,16 @@ app_server <- function(input, output, session) {
   
   ### Static values ---------------------
   sv <- list(
-    
+    PlayerNamesCSV=read.csv("data/PlayerNames.csv")
   )
   
   ### Reactive values -------------------
   rv <-
     reactiveValues(
-      ActivePlayers=NULL
+      PlayerNames_tmp=sv$PlayerNamesCSV,
+      ActivePlayers=NULL,
+      UnactivePlayers=NULL,
+      QueuePos=1
     )
   
   ### Player Selection Tab
