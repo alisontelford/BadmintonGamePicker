@@ -111,6 +111,18 @@ mod_player_selection_server <- function(id, sv, rv){
       updatePickerInput(session, "remove_player", choices=sort(rv$ActivePlayers$PlayerName))
       rv$QueuePos=rv$QueuePos+length(input$add_player)
     })
+    observeEvent(input$remove_player_button, {
+      req(input$remove_player)
+      rv$ActivePlayers=rv$ActivePlayers |> 
+        dplyr::filter(
+          !(PlayerName %in% input$remove_player)
+        )
+      rv$UnactivePlayers=rv$PlayerNames_tmp |> 
+        filter(!(PlayerName %in% rv$ActivePlayers$PlayerName))
+      updatePickerInput(session, "add_player", choices=sort(rv$UnactivePlayers$PlayerName))
+      updatePickerInput(session, "remove_player", choices=sort(rv$ActivePlayers$PlayerName))
+      rv$QueuePos=rv$QueuePos+length(input$add_player)
+    })
     output$active_players=DT::renderDT(
       DT::datatable(rv$ActivePlayers, filter="top")
     )
