@@ -6,6 +6,7 @@
 #' @import DT
 #' @import dplyr
 #' @import shinyWidgets
+#' @import stringr
 #'
 #' @noRd 
 #'
@@ -113,15 +114,40 @@ mod_player_selection_server <- function(id, sv, rv){
     })
     observeEvent(input$remove_player_button, {
       req(input$remove_player)
-      rv$ActivePlayers=rv$ActivePlayers |> 
-        dplyr::filter(
-          !(PlayerName %in% input$remove_player)
+      Condition = any(
+        !str_starts(
+          rv$ActivePlayers |> 
+            filter(PlayerName %in% input$remove_player) |> 
+            pull(Status),
+          "In Queue"
         )
-      rv$UnactivePlayers=rv$PlayerNames_tmp |> 
-        filter(!(PlayerName %in% rv$ActivePlayers$PlayerName))
-      updatePickerInput(session, "add_player", choices=sort(rv$UnactivePlayers$PlayerName))
-      updatePickerInput(session, "remove_player", choices=sort(rv$ActivePlayers$PlayerName))
-      rv$QueuePos=rv$QueuePos+length(input$add_player)
+      )
+      if (Condition){
+        showModal(
+          modalDialog(
+            HTML("<h4>One or more of those players are still in active games, please complete the games before removing the players.</h4>"),
+            easyClose=TRUE,
+            title="Error",
+          )
+        )
+      }else{
+        rv$ActivePlayers=rv$ActivePlayers |> 
+          dplyr::filter(
+            !(PlayerName %in% input$remove_player)
+          ) |> 
+          dplyr::mutate(
+            Status=ifelse(
+              str_starts(Status, "In Queue"),
+              paste0("In Queue Position ", order(as.numeric(str_sub(Status, 19, str_length(Status))))),
+              Status
+            )
+          )
+        rv$UnactivePlayers=rv$PlayerNames_tmp |> 
+          filter(!(PlayerName %in% rv$ActivePlayers$PlayerName))
+        updatePickerInput(session, "add_player", choices=sort(rv$UnactivePlayers$PlayerName))
+        updatePickerInput(session, "remove_player", choices=sort(rv$ActivePlayers$PlayerName))
+        rv$QueuePos={rv$ActivePlayers |> filter(str_starts(Status, "In Queue")) |> nrow()} + 1
+      }
     })
     output$active_players=DT::renderDT(
       DT::datatable(rv$ActivePlayers, filter="top")

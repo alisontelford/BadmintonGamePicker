@@ -18,6 +18,7 @@
 ## install.packages('attachment') # if needed.
 usethis::use_package("shinydashboard")
 usethis::use_package("shinyWidgets")
+usethis::use_package("stringr")
 attachment::att_amend_desc()
 
 ## Add modules ----
